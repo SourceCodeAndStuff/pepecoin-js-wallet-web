@@ -62,3 +62,33 @@ test('optional console rejects REST routes and bearer keys, but preserves browse
   assert.equal((await request('register',{accountName:'intruder',password:'a long test password'})).status,403);
   assert.equal((await request(`wallets/${f.wallet.id}`,undefined,{cookie})).status,404);
 });
+
+test('console hardening: JSON-only commands, uniform login failures and operator-owned spending locks', async t => {
+  const f = await fixture(t), store = new UserStore(f.dir); await store.init();
+  for (const [accountName, password] of [['alice', 'alice long password'], ['bob', 'bob long password!']]) {
+    const salt = randomBytes(16), key = passwordKey(password, salt);
+    await store.create({ accountName, displayName: accountName, passwordSalt: salt.toString('base64url'), passwordHash: passwordHash(key).toString('base64url') });
+  }
+  const server = http.createServer(walletHttp({ ...f, store, status: f.status })); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const request = (command, input, headers = {}) => fetch(base + '/console', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ command, kind: input === undefined ? 'read' : 'write', input }) });
+  // A cross-site "simple" form/text POST is refused before any command runs.
+  assert.equal((await request('health', undefined, { 'content-type': 'text/plain' })).status, 415);
+  // Unknown account, short password and wrong password are indistinguishable.
+  const failures = await Promise.all([
+    request('login', { accountName: 'nobody', password: 'some long password' }),
+    request('login', { accountName: 'alice', password: 'short' }),
+    request('login', { accountName: 'alice', password: 'wrong long password' })
+  ]);
+  assert.deepEqual(failures.map(r => r.status), [401, 401, 401]);
+  assert.equal(new Set(await Promise.all(failures.map(r => r.text()))).size, 1);
+  const alice = (await request('login', { accountName: 'alice', password: 'alice long password' })).headers.get('set-cookie').split(';')[0];
+  const bob = (await request('login', { accountName: 'bob', password: 'bob long password!' })).headers.get('set-cookie').split(';')[0];
+  assert.equal((await request('admin/lock', { locked: true, password: 'alice long password' }, { cookie: alice })).status, 200);
+  const override = await request('admin/lock', { locked: false, password: 'bob long password!' }, { cookie: bob });
+  assert.equal(override.status, 403);
+  assert.equal(f.vault.db.prepare("SELECT value FROM settings WHERE name='locked'").get().value, '1');
+  assert.equal((await request('admin/lock', { locked: false, password: 'alice long password' }, { cookie: alice })).status, 200);
+  assert.equal(f.vault.db.prepare("SELECT value FROM settings WHERE name='locked'").get().value, '0');
+});

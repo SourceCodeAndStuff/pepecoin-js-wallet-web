@@ -45,6 +45,22 @@ HTTP serves static assets and a private `POST /console` command bridge for expli
 
 For HTTPS proxying, forward WebSocket Upgrade/Connection headers and preserve the configured Host/Origin. `PUBLIC_ORIGIN` must match the visible HTTPS origin so cookies are Secure and socket authentication passes.
 
+## Security behaviour
+
+- **Operators:** the first operator is created on first start; more can register only with `ALLOW_REGISTRATION=1`. Operators can see and use only their own wallets and contacts.
+- **Sessions:** `HttpOnly`, `SameSite=Strict` cookies (plus `Secure` behind an HTTPS `PUBLIC_ORIGIN`), 8-hour lifetime, revoked on logout; sockets close when their session ends.
+- **Requests:** only the configured Host is served (DNS-rebinding protection), cross-origin requests are refused, and `POST /console` accepts only `application/json`, so a cross-site form cannot reach it. Static pages carry a strict CSP, `frame-ancestors 'none'` and `nosniff`.
+- **Sign-in:** 10 attempts per minute per client address. Unknown accounts, malformed passwords and wrong passwords take the same time and return the same error, so account names cannot be discovered.
+- **Sensitive actions** (withdrawals, key export/import, message signing, backup/restore, spending lock) ask for the operator password again.
+- **Spending lock:** the lock is vault-wide. Only the operator who engaged it can release it, and a lock set by the host application through the library cannot be released from the console.
+- **Restores** only accept reservations and locks for wallets inside the uploaded backup (see the wallet README).
+
+Keep the console on `127.0.0.1` or behind an authenticated HTTPS reverse proxy. It is an operator tool, not a public website.
+
+## Screenshots
+
+The app repository's README shows the console (overview, receive, send, history, security and network pages), captured from `npm run preview`.
+
 ## Test and preview
 
 ```sh
@@ -52,4 +68,4 @@ npm test
 npm run preview
 ```
 
-Tests use isolated temporary vaults and never broadcast funds. Preview is a local synthetic fixture on port 3041, not a production mode.
+Tests use isolated temporary vaults and never broadcast funds. They cover REST/bearer rejection, legacy login migration, socket authentication and isolation, JSON-only commands, uniform sign-in failures and spending-lock ownership. Preview is a local synthetic fixture on port 3041, not a production mode.

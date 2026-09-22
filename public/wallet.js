@@ -163,7 +163,7 @@ function renderUpdate(update) {
     if (!network.lastSyncedAt || Date.now()-Date.parse(network.lastSyncedAt)>120000) warnings.push('Index is not yet up to date. Withdrawals are paused.');
     if (network.error) warnings.push(network.error);
     if (network.spendingLocked) warnings.push('Spending is locked by the operator.');
-    const fields = { 'State':network.state, 'Indexed height':network.height, 'Peer height':network.targetHeight ?? 'Unknown', 'Peer':network.peer || 'Discovering', 'Last caught up':network.lastSyncedAt || 'Not yet', 'Progress':network.progressPercent === null ? '—' : `${network.progressPercent}%` };
+    const fields = { 'State':network.state, 'Indexed height':network.height, 'Peer height (median)':network.targetHeight ?? 'Unknown', 'Confirmed by independent peers':network.verifiedHeight ?? 'Not yet', 'Peer':network.peer || 'Discovering', 'Last caught up':network.lastSyncedAt || 'Not yet', 'Progress':network.progressPercent === null ? '—' : `${network.progressPercent}%` };
     $('network-details').innerHTML = Object.entries(fields).map(([k,v])=>`<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('');
     if (current) {
       if (update.walletId !== current || !update.snapshot) { void refresh(); return; }

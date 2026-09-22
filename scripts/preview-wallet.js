@@ -23,7 +23,7 @@ const identity=wallet.addresses[0].identity;
 /**
  * Synthetic caught-up network state with an explicit preview warning.
  */
-const status={state:'synced',height:1218500,targetHeight:1218500,progressPercent:100,peer:'Public-peer preview',lastSyncedAt:new Date().toISOString(),error:'UI PREVIEW — synthetic balances, temporary addresses, no real transaction broadcasting.'};
+const status={state:'synced',height:1218500,targetHeight:1218500,verifiedHeight:1218500,progressPercent:100,peer:'Public-peer preview',lastSyncedAt:new Date().toISOString(),error:'UI PREVIEW — synthetic balances, temporary addresses, no real transaction broadcasting.'};
 /**
  * In-memory index fixture returning fabricated coins and history for the preview identity.
  * Stored amount fields are integer ribbits, despite legacy Koinu field names.
